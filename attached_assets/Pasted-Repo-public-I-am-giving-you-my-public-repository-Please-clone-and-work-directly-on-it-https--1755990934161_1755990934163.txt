@@ -1,0 +1,411 @@
+Repo (public):
+
+I am giving you my public repository. Please clone and work directly on it.
+https://github.com/mhumayon054/gpa-calculator
+
+Create a feature branch per module (e.g., feat/auth, feat/gpa-api, etc.), open PRs to main.
+
+Keep commits atomic with clear messages.
+
+0) Goal & Scope
+
+Build a production-grade student app with:
+
+GPA & CGPA system (with persistence + history + AI projections),
+
+AI Study Assistant (“Study Genius Model” identity),
+
+Profile & Auth,
+
+Tools: Future Predictor (interest-based career paths), Online Classes Hub, Study Planner,
+
+Mobile (future) via React Native using the same API,
+
+iOS-style premium UI that’s already started in the repo.
+
+Deliver complete backend (MongoDB/Express/Node) and wire it to the existing Next.js frontend.
+
+1) Tech Stack (locked)
+
+Frontend: Next.js 15 (app router), TailwindCSS, shadcn/ui (already present in repo)
+
+Backend: Node.js + Express.js (REST API)
+
+Database: MongoDB Atlas + Mongoose
+
+Auth: JWT (httpOnly cookie) + bcrypt
+
+AI: OpenAI API (or equivalent) for assistant & copy suggestions
+
+Realtime (where needed): Socket.io or server-sent events (optional, phase 2)
+
+Hosting:
+
+Frontend → Vercel
+
+Backend → Render/Railway (or Vercel serverless if routes fit)
+
+DB → MongoDB Atlas
+
+Mobile (phase 2): React Native / Expo — reuse same REST API
+
+2) Environment & Config
+
+Create .env for backend:
+
+PORT=5000
+MONGODB_URI=<mongodb-atlas-uri>
+JWT_SECRET=<32+ char secret>
+OPENAI_API_KEY=<key>
+CLIENT_URL=https://<frontend-domain-or-localhost:3000>
+CORS_ORIGINS=https://<frontend>,http://localhost:3000
+ZOOM_SDK_KEY=<optional>
+ZOOM_SDK_SECRET=<optional>
+
+
+Acceptance: backend boots, connects to Mongo, CORS allows CLIENT_URL, all protected routes require JWT.
+
+3) Data Models (Mongoose)
+3.1 User
+
+name, email (unique), password (hashed), role: "student" | "teacher"
+
+profile: university, program, year, avatarUrl, interests: [string], profileCompletion: number
+
+createdAt, updatedAt
+
+3.2 GPARecord
+
+userId
+
+semesterNo (1,2,3…)
+
+subjects: [{ name, marks, creditHours }]
+
+semesterGPA (calc)
+
+cgpaAfterThisSemester (calc)
+
+createdAt
+
+Marks → GPA mapping (fixed):
+
+80–100 ⇒ 4.0
+
+70–79 ⇒ 3.0
+
+60–69 ⇒ 2.0
+
+50–59 ⇒ 1.0
+
+0–49 ⇒ 0.0 (F)
+
+Formulas:
+
+Subject GPA: as per mapping above
+
+Semester GPA: Σ(subjectGPA × creditHours) ÷ Σ(creditHours)
+
+CGPA: cumulative weighted average across semesters
+
+3.3 Task (Study Planner)
+
+userId, title, type: "assignment" | "exam" | "reminder", dueAt, completed:boolean, notes
+
+3.4 Class (Online Classes Hub)
+
+teacherId, title, description, meetingLink (Zoom/Jitsi), startsAt, durationMins
+
+participants: [userId]
+
+3.5 ChatSession (AI)
+
+userId, title, messages: [{role:"user"|"assistant", content, ts}]
+
+4) REST API (Express) — Routes & Contracts
+
+Base URL: /api
+
+4.1 Auth
+
+POST /auth/register
+body: { name, email, password }
+200: { user:{id,name,email,role}, token } (set httpOnly cookie)
+
+POST /auth/login
+body: { email, password }
+200: { user, token } (set cookie)
+
+POST /auth/logout → clear cookie
+
+GET /auth/me (auth) → current user
+
+Acceptance: passwords hashed, token rotation on login, rate-limited (5/min by IP).
+
+4.2 Profile
+
+GET /profile (auth) → user profile + completion %
+
+PUT /profile (auth) body: { fields to update }
+server calculates: profileCompletion (% of required fields filled)
+
+4.3 GPA
+
+POST /gpa/semester (auth)
+body: { semesterNo, subjects:[{name, marks, creditHours}] }
+server: validate marks 0–100, compute semesterGPA & updated CGPA, save record
+201: { record, currentCGPA }
+
+GET /gpa/history (auth)
+200: [{ semesterNo, semesterGPA, cgpaAfterThisSemester, subjects }]
+
+POST /gpa/projection (auth)
+body: { nextSemesterTargetGPA, plannedCreditHours }
+200: { projectedCGPA, delta }
+
+4.4 Future Predictor (Career Guidance)
+
+POST /predictor/recommend (auth)
+body: { interests:[ "AI","MERN",".NET","Automation", ...], currentSkills?:[string] }
+200: {
+recommendations:[{ track:"MERN", why, starterRoadmap:[...], resources:[...] }],
+nextSkills:[...]
+}
+
+Rule: Interest-driven, not GPA-driven. Use AI to enrich reasons & resources.
+
+4.5 Online Classes Hub
+
+POST /classes (auth teacher)
+body: { title, description, meetingLink, startsAt, durationMins }
+
+GET /classes (auth) → upcoming & past
+
+POST /classes/:id/join (auth) → add current user to participants
+
+Note: Use Zoom/Jitsi/Daily link for now (MVP). Later integrate SDK & attendance logs.
+
+4.6 Study Planner
+
+POST /planner/tasks (auth)
+body: { title, type, dueAt, notes }
+
+GET /planner/tasks (auth)
+
+PUT /planner/tasks/:id (auth)
+
+DELETE /planner/tasks/:id (auth)
+
+4.7 AI Study Assistant
+
+Identity rule: Always reply: “I am Study Genius Model, built by Chef_dev for students.” Never mention ChatGPT/OpenAI.
+
+POST /ai/chat (auth)
+body: { sessionId?, message }
+200: { sessionId, reply, messages } (server stores messages)
+
+GET /ai/chats (auth) → list sessions
+
+GET /ai/chats/:id (auth) → messages
+
+5) Frontend Integration Tasks (in this repo)
+5.1 Auth & Profile
+
+Add login/register forms; store JWT via httpOnly cookie flow.
+
+Top of Home: Profile Card showing: name, program, year, avatar, live profileCompletion% + “Complete Profile” CTA.
+
+Profile page: editable fields, real-time completion meter.
+
+5.2 Home Dashboard
+
+Sections (in order):
+
+Profile Card (with completion %)
+
+GPA Summary (latest semester GPA + current CGPA)
+
+Actions: “Add Semester”, “View History”
+
+AI Recommendation Widget: “If you target X GPA next term → CGPA +Δ”
+
+Quick links to Tools
+
+5.3 GPA UI
+
+Form to add semester → (subject name, marks (0–100), credit hours).
+
+After submit → show computed Semester GPA and updated CGPA, save to history.
+
+History table with all semesters; chart (Recharts) for GPA trend.
+
+5.4 Tools (More tab → animated sidebar)
+
+List tools with icons & micro-descriptions:
+
+Future Predictor (interest chips selector → results page with tracks, reasons, resources)
+
+Online Classes (list upcoming, join buttons)
+
+Study Planner (tasks board + due badges)
+
+(Phase 2 extras can be added later)
+
+5.5 Chat Tab (AI)
+
+Left collapsible sidebar of chat sessions (new chat button).
+
+Chat screen with file upload (for now: images/PDF names; processing via placeholder until file-AI added).
+
+Header: model identity pinned (“Study Genius Model by Chef_dev”).
+
+5.6 UX/Visual
+
+Keep existing gradient iOS-feel.
+
+Smooth slide animations for sidebars.
+
+Consistent shadcn components.
+
+Mobile-first responsive layouts.
+
+6) Non-Functional Requirements
+
+Security:
+
+JWT in httpOnly cookie, CSRF safe endpoints, input validation via Zod/Joi.
+
+Rate-limit auth & AI routes (5–10 req/min/IP).
+
+Passwords hashed with bcrypt(10+).
+
+Performance:
+
+P95 API < 300ms for standard endpoints (excluding AI).
+
+DB indexes: userId on GPARecord/Task/Class.
+
+Reliability:
+
+Handle partial failures gracefully (AI timeout → fallback message).
+
+429 for rate limits, 413 for big payloads.
+
+Logging/Monitoring:
+
+Basic request logs (method, path, latency, status).
+
+Error logs with stack (no secrets).
+
+7) Acceptance Criteria (per feature)
+Auth & Profile
+
+✅ Register/Login/Logout works; /auth/me returns user.
+
+✅ Profile updates persist; completion % updates instantly.
+
+GPA/CGPA
+
+✅ Subject marks mapping strictly matches rules.
+
+✅ Semester GPA & CGPA computed exactly; history persists.
+
+✅ Projection returns realistic projectedCGPA & delta.
+
+Future Predictor
+
+✅ Interest tags drive recommendations; response includes why, starter roadmap, resources.
+
+✅ Works offline of GPA (no dependency on grades).
+
+Online Classes
+
+✅ Teacher can create; students see & join via meeting link.
+
+✅ List view shows upcoming/past based on startsAt.
+
+Study Planner
+
+✅ CRUD tasks; due badges; completed filter.
+
+✅ (Optional) notifications via email/cron (phase 2).
+
+AI Assistant
+
+✅ Identity locked; never mentions ChatGPT/OpenAI.
+
+✅ Sessions saved; sidebar lists chats; can resume old sessions.
+
+Frontend UX
+
+✅ Home screen shows profile card, GPA summary, actions, AI tip.
+
+✅ More tab opens animated tools sidebar.
+
+✅ Mobile responsive throughout.
+
+8) QA Checklist
+
+ All protected routes return 401 without token.
+
+ Input validation errors return 400 with field messages.
+
+ Marks outside 0–100 rejected.
+
+ CGPA never exceeds 4.0; no NaN/Infinity.
+
+ AI route rate-limited; handles 3x retry or timeout fallback.
+
+ CORS only allows CLIENT_URL.
+
+ Lighthouse Performance ≥ 85 on core pages.
+
+9) Deployment Plan
+
+DB: Create MongoDB Atlas cluster; whitelist backend host.
+
+Backend: Deploy to Render/Railway; set env vars; enable health check /api/health.
+
+Frontend: Vercel; set NEXT_PUBLIC_API_BASE to backend URL.
+
+Domain: Optional custom domains.
+
+Monitoring: Enable basic logs; capture errors.
+
+10) Mobile (Phase 2 — Play Store Ready)
+
+React Native/Expo app consuming same REST API.
+
+Screens: Auth, Home, GPA, Planner, AI, Classes.
+
+Push notifications: Expo Notifications for planner & classes.
+
+Build: EAS build; internal testing → closed testing → production.
+
+Branding: app icon, splash, privacy policy, ToS.
+
+11) Task Board (suggested order)
+
+Auth + Profile (API + UI wiring)
+
+GPA/CGPA API + UI history + charts
+
+Predictor API + UI (interest chips → results)
+
+Online Classes (CRUD + list + join)
+
+Study Planner (CRUD + due badges)
+
+AI Assistant (sessions + identity lock)
+
+Hardening (rate limits, logging, QA)
+
+Deploy backend + wire FE envs
+
+Final UX polish & acceptance pass
+
+Final Note for the executor Replit AI
+
+You have full access to the public repo: https://github.com/mhumayon054/gpa-calculator
+.
+Please clone the repo, implement the backend and missing frontend wiring as defined above, push feature branches, and open PRs to main with a short demo video/GIF per feature.
