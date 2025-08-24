@@ -37,9 +37,9 @@ export default function AuthPage() {
 
     try {
       await loginMutation.mutateAsync({
-        username: loginData.email, // Backend expects username field
+        email: loginData.email,
         password: loginData.password,
-      } as any);
+      });
     } catch (error) {
       // Error handled by mutation
     }
@@ -65,10 +65,10 @@ export default function AuthPage() {
       return;
     }
 
-    if (registerData.password.length < 6) {
+    if (registerData.password.length < 8) {
       toast({
         title: "Error",
-        description: "Password must be at least 6 characters long",
+        description: "Password must be at least 8 characters long",
         variant: "destructive",
       });
       return;
@@ -79,6 +79,7 @@ export default function AuthPage() {
         name: registerData.name,
         email: registerData.email,
         password: registerData.password,
+        confirmPassword: registerData.confirmPassword,
       });
     } catch (error) {
       // Error handled by mutation

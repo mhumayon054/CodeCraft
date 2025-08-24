@@ -76,12 +76,30 @@ export const chatSessions = pgTable("chat_sessions", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Refresh Tokens table
+export const refreshTokens = pgTable("refresh_tokens", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  token: text("token").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Blacklisted Tokens table
+export const blacklistedTokens = pgTable("blacklisted_tokens", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  token: text("token").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Relations
 export const userRelations = relations(users, ({ many }) => ({
   gpaRecords: many(gpaRecords),
   tasks: many(tasks),
   classes: many(classes),
   chatSessions: many(chatSessions),
+  refreshTokens: many(refreshTokens),
 }));
 
 export const gpaRecordRelations = relations(gpaRecords, ({ one }) => ({
@@ -108,6 +126,13 @@ export const classRelations = relations(classes, ({ one }) => ({
 export const chatSessionRelations = relations(chatSessions, ({ one }) => ({
   user: one(users, {
     fields: [chatSessions.userId],
+    references: [users.id],
+  }),
+}));
+
+export const refreshTokenRelations = relations(refreshTokens, ({ one }) => ({
+  user: one(users, {
+    fields: [refreshTokens.userId],
     references: [users.id],
   }),
 }));
@@ -144,6 +169,16 @@ export const insertChatSessionSchema = createInsertSchema(chatSessions).omit({
   updatedAt: true,
 });
 
+export const insertRefreshTokenSchema = createInsertSchema(refreshTokens).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertBlacklistedTokenSchema = createInsertSchema(blacklistedTokens).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -155,6 +190,10 @@ export type Class = typeof classes.$inferSelect;
 export type InsertClass = z.infer<typeof insertClassSchema>;
 export type ChatSession = typeof chatSessions.$inferSelect;
 export type InsertChatSession = z.infer<typeof insertChatSessionSchema>;
+export type RefreshToken = typeof refreshTokens.$inferSelect;
+export type InsertRefreshToken = z.infer<typeof insertRefreshTokenSchema>;
+export type BlacklistedToken = typeof blacklistedTokens.$inferSelect;
+export type InsertBlacklistedToken = z.infer<typeof insertBlacklistedTokenSchema>;
 
 // Subject type for GPA calculation
 export type Subject = {

@@ -4,6 +4,8 @@ import {
   tasks, 
   classes, 
   chatSessions,
+  refreshTokens,
+  blacklistedTokens,
   type User, 
   type InsertUser, 
   type GPARecord, 
@@ -14,10 +16,14 @@ import {
   type InsertClass,
   type ChatSession,
   type InsertChatSession,
+  type RefreshToken,
+  type InsertRefreshToken,
+  type BlacklistedToken,
+  type InsertBlacklistedToken,
   type Subject
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, lt } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
@@ -52,6 +58,15 @@ export interface IStorage {
   getChatSessions(userId: string): Promise<ChatSession[]>;
   getChatSession(id: string, userId: string): Promise<ChatSession | undefined>;
   updateChatSession(id: string, userId: string, updates: Partial<ChatSession>): Promise<ChatSession | undefined>;
+  
+  // Token operations
+  createRefreshToken(token: InsertRefreshToken): Promise<RefreshToken>;
+  getRefreshToken(tokenId: string, userId: string): Promise<RefreshToken | undefined>;
+  revokeRefreshToken(tokenId: string, userId: string): Promise<void>;
+  revokeAllRefreshTokens(userId: string): Promise<void>;
+  blacklistToken(token: InsertBlacklistedToken): Promise<BlacklistedToken>;
+  isTokenBlacklisted(token: string): Promise<boolean>;
+  cleanupExpiredTokens(): Promise<void>;
   
   sessionStore: session.Store;
 }
@@ -276,6 +291,65 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(chatSessions.id, id), eq(chatSessions.userId, userId)))
       .returning();
     return session || undefined;
+  }
+
+  // Token operations
+  async createRefreshToken(tokenData: InsertRefreshToken): Promise<RefreshToken> {
+    const [token] = await db
+      .insert(refreshTokens)
+      .values(tokenData)
+      .returning();
+    return token;
+  }
+
+  async getRefreshToken(tokenId: string, userId: string): Promise<RefreshToken | undefined> {
+    const [token] = await db
+      .select()
+      .from(refreshTokens)
+      .where(and(eq(refreshTokens.token, tokenId), eq(refreshTokens.userId, userId)));
+    return token || undefined;
+  }
+
+  async revokeRefreshToken(tokenId: string, userId: string): Promise<void> {
+    await db
+      .delete(refreshTokens)
+      .where(and(eq(refreshTokens.token, tokenId), eq(refreshTokens.userId, userId)));
+  }
+
+  async revokeAllRefreshTokens(userId: string): Promise<void> {
+    await db
+      .delete(refreshTokens)
+      .where(eq(refreshTokens.userId, userId));
+  }
+
+  async blacklistToken(tokenData: InsertBlacklistedToken): Promise<BlacklistedToken> {
+    const [token] = await db
+      .insert(blacklistedTokens)
+      .values(tokenData)
+      .returning();
+    return token;
+  }
+
+  async isTokenBlacklisted(token: string): Promise<boolean> {
+    const [blacklisted] = await db
+      .select()
+      .from(blacklistedTokens)
+      .where(eq(blacklistedTokens.token, token));
+    return !!blacklisted;
+  }
+
+  async cleanupExpiredTokens(): Promise<void> {
+    const now = new Date();
+    
+    // Clean up expired refresh tokens
+    await db
+      .delete(refreshTokens)
+      .where(lt(refreshTokens.expiresAt, now));
+    
+    // Clean up expired blacklisted tokens
+    await db
+      .delete(blacklistedTokens)
+      .where(lt(blacklistedTokens.expiresAt, now));
   }
 }
 

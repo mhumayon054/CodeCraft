@@ -1,18 +1,13 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { setupAuth, requireAuth } from "./auth";
+import cookieParser from "cookie-parser";
+import { setupJWTAuth, requireAuth } from "./auth-jwt";
 import { storage } from "./storage";
 import { getChatResponse, getCareerRecommendations, getGPAProjection } from "./openai";
 import { insertGPARecordSchema, insertTaskSchema, insertClassSchema } from "@shared/schema";
 import rateLimit from "express-rate-limit";
 
-// Rate limiting
-const authLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // 1 minute
-  max: 5, // 5 requests per minute
-  message: { message: "Too many authentication attempts, please try again later." }
-});
-
+// Rate limiting for AI endpoints (auth rate limiting is handled in auth-jwt.ts)
 const aiLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
   max: 10, // 10 requests per minute
@@ -20,12 +15,13 @@ const aiLimiter = rateLimit({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Setup authentication routes
-  setupAuth(app);
+  // Setup cookie parser for HTTP-only cookies
+  app.use(cookieParser());
+  
+  // Setup JWT authentication routes
+  setupJWTAuth(app);
 
-  // Apply rate limiting to auth routes
-  app.use("/api/register", authLimiter);
-  app.use("/api/login", authLimiter);
+  // Apply rate limiting to AI routes
   app.use("/api/ai/*", aiLimiter);
 
   // Health check
