@@ -192,8 +192,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/planner/tasks", requireAuth, async (req, res) => {
     try {
       const userId = req.user!.id;
-      const data = insertTaskSchema.parse(req.body);
       
+      // Convert dueAt string to Date object if needed
+      if (req.body.dueAt && typeof req.body.dueAt === 'string') {
+        req.body.dueAt = new Date(req.body.dueAt);
+      }
+      
+      const data = insertTaskSchema.parse(req.body);
       const task = await storage.createTask({ ...data, userId });
       res.status(201).json(task);
     } catch (error: any) {

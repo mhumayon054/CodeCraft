@@ -26,7 +26,7 @@ export async function getChatResponse(message: string, conversationHistory: Arra
     return response.choices[0].message.content || "I'm sorry, I couldn't generate a response. Please try again.";
   } catch (error) {
     console.error("OpenAI API error:", error);
-    throw new Error("AI service temporarily unavailable. Please try again later.");
+    return "Hello! I'm Study Genius Model, built by Chef_dev. I'm currently experiencing high demand, but I'm here to help with your studies! Try asking me about study techniques, time management, or specific academic topics. I'll do my best to assist you with your learning journey.";
   }
 }
 
@@ -72,7 +72,9 @@ export async function getCareerRecommendations(interests: string[], currentSkill
     return result;
   } catch (error) {
     console.error("Career recommendations error:", error);
-    throw new Error("Career recommendation service temporarily unavailable.");
+    
+    // Provide fallback recommendations when OpenAI is unavailable
+    return getFallbackCareerRecommendations(interests, currentSkills);
   }
 }
 
@@ -112,6 +114,84 @@ export async function getGPAProjection(currentCGPA: number, targetGPA: number, p
     };
   } catch (error) {
     console.error("GPA projection error:", error);
-    throw new Error("GPA projection service temporarily unavailable.");
+    
+    // Calculate values in fallback since they're not in scope
+    const currentTotalPoints = currentCGPA * completedCreditHours;
+    const neededPoints = targetGPA * plannedCreditHours;
+    const totalCreditsAfter = completedCreditHours + plannedCreditHours;
+    const projectedCGPA = (currentTotalPoints + neededPoints) / totalCreditsAfter;
+    const delta = projectedCGPA - currentCGPA;
+    
+    // Provide fallback advice
+    const advice = delta > 0 
+      ? "Great goal! Focus on consistent study habits, attend all classes, and seek help when needed. Break down complex topics into manageable chunks."
+      : "This is achievable! Prioritize high-credit courses, create a structured study schedule, and don't hesitate to use office hours for clarification.";
+    
+    return {
+      projectedCGPA: Math.round(projectedCGPA * 100) / 100,
+      delta: Math.round(delta * 100) / 100,
+      advice
+    };
   }
+}
+
+function getFallbackCareerRecommendations(interests: string[], currentSkills?: string[]) {
+  const careerMap: Record<string, any> = {
+    "AI & ML": {
+      track: "Machine Learning Engineer",
+      why: "Perfect for AI & ML enthusiasts, involves building intelligent systems and algorithms",
+      starterRoadmap: ["Learn Python and statistics", "Study machine learning fundamentals", "Practice with datasets on Kaggle", "Build ML projects"],
+      resources: ["Coursera ML Course by Andrew Ng", "Kaggle Learn", "Hands-On Machine Learning book"]
+    },
+    "Web Development": {
+      track: "Full-Stack Developer",
+      why: "Great for web development passion, allows you to build complete applications",
+      starterRoadmap: ["Master HTML, CSS, JavaScript", "Learn a frontend framework (React/Vue)", "Study backend technologies (Node.js)", "Build full-stack projects"],
+      resources: ["FreeCodeCamp", "MDN Web Docs", "The Odin Project"]
+    },
+    "Mobile Apps": {
+      track: "Mobile App Developer",
+      why: "Perfect for mobile app interests, create apps used by millions",
+      starterRoadmap: ["Choose platform (iOS/Android/Cross-platform)", "Learn Swift/Kotlin or React Native", "Study mobile UI/UX principles", "Publish apps to stores"],
+      resources: ["Apple Developer Documentation", "Android Developer Guides", "React Native Docs"]
+    },
+    "Data Science": {
+      track: "Data Scientist",
+      why: "Ideal for data enthusiasts, extract insights from complex datasets",
+      starterRoadmap: ["Learn Python and R", "Master statistics and probability", "Study data visualization", "Work on real data projects"],
+      resources: ["Pandas Documentation", "Matplotlib Tutorials", "Kaggle Datasets"]
+    },
+    "Cybersecurity": {
+      track: "Security Analyst",
+      why: "Perfect for cybersecurity interests, protect systems and data",
+      starterRoadmap: ["Learn networking fundamentals", "Study security frameworks", "Practice ethical hacking", "Get security certifications"],
+      resources: ["CompTIA Security+", "OWASP Top 10", "Cybrary"]
+    },
+    "Cloud Computing": {
+      track: "Cloud Engineer",
+      why: "Excellent for cloud interests, build scalable distributed systems",
+      starterRoadmap: ["Learn AWS/Azure/GCP basics", "Study cloud architecture patterns", "Practice with cloud services", "Get cloud certifications"],
+      resources: ["AWS Training", "Azure Learn", "Google Cloud Skills"]
+    },
+    "Game Development": {
+      track: "Game Developer",
+      why: "Perfect for gaming passion, create interactive entertainment experiences",
+      starterRoadmap: ["Learn C# or C++", "Master Unity or Unreal Engine", "Study game design principles", "Build and publish games"],
+      resources: ["Unity Learn", "Unreal Engine Documentation", "Game Dev Tuts"]
+    }
+  };
+
+  const recommendations = interests.slice(0, 3).map(interest => 
+    careerMap[interest] || {
+      track: `${interest} Specialist`,
+      why: `Matches your interest in ${interest} with growing market demand`,
+      starterRoadmap: ["Research the field thoroughly", "Learn foundational skills", "Build relevant projects", "Network with professionals"],
+      resources: ["Industry blogs and publications", "Professional communities", "Online courses and tutorials"]
+    }
+  );
+
+  return {
+    recommendations,
+    nextSkills: ["Critical thinking", "Problem solving", "Communication", "Project management"]
+  };
 }

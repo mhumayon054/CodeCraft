@@ -1,9 +1,14 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { 
   X, 
@@ -12,7 +17,11 @@ import {
   Video, 
   BarChart3,
   Plus,
-  ChevronLeft 
+  ChevronLeft,
+  Clock,
+  CheckCircle,
+  Edit,
+  Trash2
 } from "lucide-react";
 
 interface ToolsSidebarProps {
@@ -27,6 +36,9 @@ export default function ToolsSidebar({ isOpen, onClose }: ToolsSidebarProps) {
   const [currentView, setCurrentView] = useState<View>('menu');
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [recommendations, setRecommendations] = useState<any[]>([]);
+  const [showTaskForm, setShowTaskForm] = useState(false);
+  const [taskFilter, setTaskFilter] = useState<'all' | 'pending' | 'completed'>('all');
+  const [editingTask, setEditingTask] = useState<any>(null);
 
   const availableInterests = [
     "AI & ML", "Web Development", "Mobile Apps", "Data Science", 
@@ -75,6 +87,95 @@ export default function ToolsSidebar({ isOpen, onClose }: ToolsSidebarProps) {
     setCurrentView('menu');
     setSelectedInterests([]);
     setRecommendations([]);
+    setShowTaskForm(false);
+    setEditingTask(null);
+  };
+
+  // Task management queries and mutations
+  const { data: tasks = [] } = useQuery<any[]>({
+    queryKey: ['/api/planner/tasks'],
+  });
+
+  const createTaskMutation = useMutation({
+    mutationFn: async (taskData: any) => {
+      const response = await apiRequest('POST', '/api/planner/tasks', taskData);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/planner/tasks'] });
+      setShowTaskForm(false);
+      toast({ title: 'Success', description: 'Task created successfully!' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const updateTaskMutation = useMutation({
+    mutationFn: async ({ id, ...updates }: any) => {
+      const response = await apiRequest('PUT', `/api/planner/tasks/${id}`, updates);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/planner/tasks'] });
+      setEditingTask(null);
+      toast({ title: 'Success', description: 'Task updated successfully!' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const deleteTaskMutation = useMutation({
+    mutationFn: async (taskId: string) => {
+      await apiRequest('DELETE', `/api/planner/tasks/${taskId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/planner/tasks'] });
+      toast({ title: 'Success', description: 'Task deleted successfully!' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const filteredTasks = tasks.filter(task => {
+    if (taskFilter === 'pending') return !task.completed;
+    if (taskFilter === 'completed') return task.completed;
+    return true;
+  });
+
+  const handleTaskSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    
+    const taskData = {
+      title: formData.get('title') as string,
+      type: formData.get('type') as string,
+      dueAt: formData.get('dueAt') ? new Date(formData.get('dueAt') as string).toISOString() : null,
+      notes: formData.get('notes') as string || null,
+    };
+
+    if (editingTask) {
+      updateTaskMutation.mutate({ id: editingTask.id, ...taskData });
+    } else {
+      createTaskMutation.mutate(taskData);
+    }
+  };
+
+  const toggleTaskComplete = (task: any) => {
+    updateTaskMutation.mutate({ id: task.id, completed: !task.completed });
+  };
+
+  const startEditing = (task: any) => {
+    setEditingTask(task);
+    setShowTaskForm(true);
+  };
+
+  const deleteTask = (taskId: string) => {
+    if (confirm('Are you sure you want to delete this task?')) {
+      deleteTaskMutation.mutate(taskId);
+    }
   };
 
   const renderContent = () => {
@@ -153,6 +254,103 @@ export default function ToolsSidebar({ isOpen, onClose }: ToolsSidebarProps) {
         );
 
       case 'planner':
+        if (showTaskForm) {
+          return (
+            <div className="p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={() => setShowTaskForm(false)}
+                    data-testid="button-back-task-form"
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </Button>
+                  <h4 className="font-semibold text-gray-800">
+                    {editingTask ? 'Edit Task' : 'Add New Task'}
+                  </h4>
+                </div>
+              </div>
+
+              <form onSubmit={handleTaskSubmit} className="space-y-4">
+                <div>
+                  <Label htmlFor="title">Task Title</Label>
+                  <Input
+                    id="title"
+                    name="title"
+                    required
+                    defaultValue={editingTask?.title || ''}
+                    placeholder="e.g., Study for Math Exam"
+                    data-testid="input-task-title"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="type">Task Type</Label>
+                  <Select name="type" defaultValue={editingTask?.type || 'study'}>
+                    <SelectTrigger data-testid="select-task-type">
+                      <SelectValue placeholder="Select task type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="study">Study Session</SelectItem>
+                      <SelectItem value="assignment">Assignment</SelectItem>
+                      <SelectItem value="exam">Exam</SelectItem>
+                      <SelectItem value="project">Project</SelectItem>
+                      <SelectItem value="reading">Reading</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="dueAt">Due Date (Optional)</Label>
+                  <Input
+                    id="dueAt"
+                    name="dueAt"
+                    type="datetime-local"
+                    defaultValue={editingTask?.dueAt ? new Date(editingTask.dueAt).toISOString().slice(0, 16) : ''}
+                    data-testid="input-task-due-date"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="notes">Notes (Optional)</Label>
+                  <Textarea
+                    id="notes"
+                    name="notes"
+                    placeholder="Additional details about this task..."
+                    defaultValue={editingTask?.notes || ''}
+                    data-testid="textarea-task-notes"
+                  />
+                </div>
+
+                <div className="flex space-x-2">
+                  <Button 
+                    type="submit" 
+                    className="flex-1"
+                    disabled={createTaskMutation.isPending || updateTaskMutation.isPending}
+                    data-testid="button-save-task"
+                  >
+                    {editingTask ? 'Update Task' : 'Create Task'}
+                  </Button>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => {
+                      setShowTaskForm(false);
+                      setEditingTask(null);
+                    }}
+                    data-testid="button-cancel-task"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            </div>
+          );
+        }
+
         return (
           <div className="p-4 space-y-4">
             <div className="flex items-center justify-between">
@@ -167,15 +365,96 @@ export default function ToolsSidebar({ isOpen, onClose }: ToolsSidebarProps) {
                 </Button>
                 <h4 className="font-semibold text-gray-800">Study Planner</h4>
               </div>
-              <Button size="sm" variant="outline" data-testid="button-add-task">
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={() => setShowTaskForm(true)}
+                data-testid="button-add-task"
+              >
                 <Plus className="h-4 w-4 mr-1" /> Add Task
               </Button>
             </div>
 
-            <div className="text-center py-8 text-gray-500">
-              <Calendar className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p className="text-sm">Study Planner feature</p>
-              <p className="text-xs mt-1">Coming soon with full task management</p>
+            <div className="flex space-x-2 mb-4">
+              {['all', 'pending', 'completed'].map((filter) => (
+                <Button
+                  key={filter}
+                  size="sm"
+                  variant={taskFilter === filter ? 'default' : 'outline'}
+                  onClick={() => setTaskFilter(filter as typeof taskFilter)}
+                  data-testid={`filter-${filter}`}
+                  className="capitalize"
+                >
+                  {filter}
+                </Button>
+              ))}
+            </div>
+
+            <div className="space-y-3">
+              {filteredTasks.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <Calendar className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p className="text-sm">No tasks found</p>
+                  <p className="text-xs mt-1">
+                    {taskFilter === 'all' ? 'Create your first task!' : `No ${taskFilter} tasks`}
+                  </p>
+                </div>
+              ) : (
+                filteredTasks.map((task) => (
+                  <Card key={task.id} className="bg-white border">
+                    <CardContent className="p-4">
+                      <div className="flex items-start space-x-3">
+                        <Checkbox
+                          checked={task.completed}
+                          onCheckedChange={() => toggleTaskComplete(task)}
+                          data-testid={`checkbox-task-${task.id}`}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <h5 className={`font-medium ${task.completed ? 'line-through text-gray-500' : 'text-gray-800'}`}>
+                              {task.title}
+                            </h5>
+                            <div className="flex space-x-1">
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => startEditing(task)}
+                                data-testid={`button-edit-task-${task.id}`}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => deleteTask(task.id)}
+                                data-testid={`button-delete-task-${task.id}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center space-x-2 mt-1">
+                            <Badge variant="outline" className="text-xs">
+                              {task.type}
+                            </Badge>
+                            {task.dueAt && (
+                              <div className="flex items-center text-xs text-gray-500">
+                                <Clock className="h-3 w-3 mr-1" />
+                                {new Date(task.dueAt).toLocaleDateString()}
+                              </div>
+                            )}
+                          </div>
+                          
+                          {task.notes && (
+                            <p className="text-sm text-gray-600 mt-2">{task.notes}</p>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
             </div>
           </div>
         );

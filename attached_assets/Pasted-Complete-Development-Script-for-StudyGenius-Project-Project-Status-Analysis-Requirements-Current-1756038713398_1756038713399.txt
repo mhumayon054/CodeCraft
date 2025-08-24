@@ -1,0 +1,189 @@
+Complete Development Script for StudyGenius Project
+Project Status Analysis & Requirements
+Current Implementation Status
+The StudyGenius project has partial implementation with significant structural issues. The frontend has multiple pages (Auth, Chat, GPA, Home) with decent UI, but the backend has critical authentication conflicts, missing endpoints, and database configuration errors. The project is currently non-functional due to these fundamental issues.
+
+1. CRITICAL BUG FIXES REQUIRED
+A. Authentication System Overhaul
+Current Problem: Mixed JWT + Session authentication causing complete login failure
+
+Implementation Script:
+
+plaintext
+1. REMOVE Passport.js session authentication completely from auth.ts
+2. IMPLEMENT JWT-based authentication in auth.ts:
+   - Create /api/jwt/login endpoint that returns JWT token
+   - Create /api/jwt/register endpoint that creates user and returns JWT
+   - Add JWT verification middleware for protected routes
+3. UPDATE frontend auth-page.tsx to properly handle JWT tokens
+4. FIX CORS configuration to allow frontend-backend communication
+5. ENSURE all API calls include Authorization header with JWT token
+B. Database Configuration Fix
+Current Problem: MongoDB connection string with PostgreSQL system
+
+Implementation Script:
+
+plaintext
+1. REPLACE MongoDB URL in .env with PostgreSQL connection string:
+   DATABASE_URL="postgresql://username:password@localhost:5432/studygenius"
+2. VERIFY database schema matches DrizzleORM expectations
+3. RUN database migrations to ensure tables exist
+4. TEST database connection on application startup
+C. Missing API Endpoints Implementation
+Current Problem: Frontend expects APIs that don't exist
+
+Implementation Script:
+
+plaintext
+1. IMPLEMENT in routes.ts:
+   - GET /api/profile → Returns user profile data
+   - GET /api/gpa/history → Returns user's GPA history
+   - GET /api/planner/tasks → Returns study tasks
+   - GET /api/classes → Returns class information
+
+2. CONNECT each endpoint to database storage layer
+3. ADD proper error handling and validation
+4. TEST each endpoint with frontend components
+2. FEATURE COMPLETION REQUIREMENTS
+A. Future Predictor/Career Guidance Feature
+Current Status: Backend endpoint exists but frontend integration incomplete
+
+Implementation Script:
+
+plaintext
+1. COMPLETE frontend UI in tools-sidebar.tsx for career recommendations
+2. ADD form for users to input their interests and skills
+3. IMPLEMENT results display component with career tracks
+4. ADD progress tracking for recommended skills
+5. INTEGRATE with backend /api/predictor/recommend endpoint
+6. STYLE components to match existing design system
+B. Study Planner Feature
+Current Status: Basic UI exists but functionality incomplete
+
+Implementation Script:
+
+plaintext
+1. COMPLETE task management functionality:
+   - Add task creation modal with form
+   - Implement task editing and deletion
+   - Add task completion tracking
+2. CREATE calendar view component for visual scheduling
+3. ADD notification system for upcoming deadlines
+4. IMPLEMENT task categories and priority levels
+5. ADD study session timer functionality
+6. INTEGRATE with backend tasks API endpoints
+C. Online Classes Hub Feature
+Current Status: UI components exist but functionality missing
+
+Implementation Script:
+
+plaintext
+1. IMPLEMENT class creation functionality for teachers
+2. ADD class joining system for students
+3. INTEGRATE video API (Zoom/Google Meet):
+   - Generate meeting links automatically
+   - Add join meeting functionality
+4. CREATE class schedule view with upcoming sessions
+5. ADD attendance tracking system
+6. IMPLEMENT class materials sharing feature
+D. AI Study Assistant Enhancement
+Current Status: Basic chat works but needs improvements
+
+Implementation Script:
+
+plaintext
+1. IMPLEMENT proper conversation persistence
+2. ADD message history loading on session open
+3. CREATE chat export functionality
+4. ADD study-specific features:
+   - Flashcard generation from conversations
+   - Quiz creation from study materials
+   - Summary generation for long texts
+5. IMPLEMENT rate limiting to manage API costs
+3. SECURITY ENHANCEMENTS
+Implementation Script:
+
+plaintext
+1. REPLACE weak JWT secret with strong environment variable
+2. ADD rate limiting to all authentication endpoints
+3. IMPLEMENT input validation using Zod on all endpoints
+4. ADD password strength requirements for registration
+5. IMPLEMENT proper password hashing consistently
+6. ADD XSS protection and CSRF tokens
+7. IMPLEMENT proper error handling without information leakage
+4. PERFORMANCE OPTIMIZATIONS
+Implementation Script:
+
+plaintext
+1. ADD pagination to:
+   - Chat history endpoints
+   - GPA history endpoints
+   - Task lists
+2. IMPLEMENT caching for:
+   - Frequently accessed user data
+   - Career recommendations
+   - Class schedules
+3. OPTIMIZE database queries with proper indexing
+4. COMPRESS API responses where appropriate
+5. IMPLEMENT lazy loading for chat messages
+5. UI/UX IMPROVEMENTS
+Implementation Script:
+
+plaintext
+1. ENSURE mobile responsiveness across all components
+2. ADD loading states for all API calls
+3. IMPLEMENT consistent error handling patterns
+4. ADD dark mode support throughout application
+5. IMPROVE accessibility (ARIA labels, keyboard navigation)
+6. ADD animations for smoother transitions
+7. CREATE onboarding flow for new users
+8. IMPLEMENT tutorial system for feature discovery
+6. TESTING REQUIREMENTS
+Implementation Script:
+
+plaintext
+1. WRITE unit tests for all API endpoints
+2. CREATE integration tests for critical user flows:
+   - Registration and login
+   - GPA calculation
+   - Chat functionality
+3. IMPLEMENT end-to-end testing for main features
+4. ADD performance testing for heavy operations
+5. CONDUCT usability testing with real users
+PRIORITY IMPLEMENTATION ORDER
+FIX AUTHENTICATION - Make login/register work immediately
+
+FIX DATABASE - Ensure proper database connection
+
+IMPLEMENT MISSING APIS - Make existing frontend functional
+
+COMPLETE CORE FEATURES - Future predictor, study planner, classes hub
+
+ENHANCE AI ASSISTANT - Improve chat functionality
+
+ADD SECURITY MEASURES - Protect user data
+
+OPTIMIZE PERFORMANCE - Ensure smooth operation
+
+IMPROVE UI/UX - Enhance user experience
+
+IMPLEMENT TESTING - Ensure reliability
+
+EXPECTED OUTCOME
+After implementing these fixes and features, StudyGenius will be a fully functional AI-powered study platform with:
+
+✅ Secure JWT authentication
+
+✅ Complete GPA tracking system
+
+✅ AI study assistant with persistent chats
+
+✅ Career guidance future predictor
+
+✅ Comprehensive study planner
+
+✅ Online classes hub with video integration
+
+✅ Responsive, accessible UI
+
+✅ Secure, performant backend

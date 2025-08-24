@@ -150,11 +150,15 @@ export const insertGPARecordSchema = createInsertSchema(gpaRecords).omit({
   createdAt: true,
 });
 
-export const insertTaskSchema = createInsertSchema(tasks).omit({
-  id: true,
-  userId: true,
-  createdAt: true,
-});
+export const insertTaskSchema = createInsertSchema(tasks)
+  .omit({
+    id: true,
+    userId: true,
+    createdAt: true,
+  })
+  .extend({
+    dueAt: z.union([z.date(), z.string().transform((str) => new Date(str))]),
+  });
 
 export const insertClassSchema = createInsertSchema(classes).omit({
   id: true,
