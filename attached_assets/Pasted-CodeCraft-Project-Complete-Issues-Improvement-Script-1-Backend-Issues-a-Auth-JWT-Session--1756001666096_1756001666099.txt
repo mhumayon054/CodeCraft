@@ -1,0 +1,139 @@
+CodeCraft Project – Complete Issues & Improvement Script
+1. Backend Issues
+
+a) Auth / JWT / Session Problems
+
+Tumhara current backend passport-local aur express-session use kar raha hai, JWT nahi hai, aur session-based auth thik se kaam nahi kar rahi.
+
+Errors console me ye aa rahe the:
+
+GET http://127.0.0.1:5000/api/user 401 (Unauthorized)
+POST http://127.0.0.1:5000/api/login 401 (Unauthorized)
+POST http://127.0.0.1:5000/api/register 500 (Internal Server Error)
+
+
+Breakdown:
+
+401 → Frontend fetch me credentials: "include" missing hai → session cookie send nahi ho rahi
+
+500 → Backend me storage.createUser ya database call error, ya invalid data (name/email/password missing)
+
+JWT authentication not implemented → future authentication secure karne ke liye JWT zaroori
+
+Fix / Improvement:
+
+Replace session-based auth with JWT tokens
+
+Frontend se har API call me token bhejna
+
+Backend me /login, /register, /user endpoints properly JWT verify karen
+
+2. Frontend Issues
+
+a) Tools Page
+
+Tumne 10 features mention kiye the → sirf 4 implement hue
+
+Baaki features backend / logic ke bina sirf design me dikh rahe
+
+UI incomplete
+
+b) AI Chat
+
+Placeholder design incorrect (type karne wala box properly design nahi hai)
+
+Chat response logic incomplete
+
+Scroll / chat history properly handle nahi ho rahi
+
+c) Tabs at Bottom (Navigation / Footer Tabs)
+
+Properly responsive nahi hai
+
+Some tabs overlap ho rahe hain ya hidden ho rahe hain
+
+Fix / Improvement:
+
+Tools page: backend API implement karo → saare 10 features properly fetch / update ho
+
+AI Chat: input box properly style karo, scrollable chat area, backend API integration for response
+
+Tabs: responsive CSS (Flex/Grid + media queries), z-index check karo
+
+3. CORS / Network Issues
+
+Frontend (5173) → Backend (5000) cross-origin request properly credentials ke saath nahi bhej raha → 401 errors
+Fix:
+
+fetch("http://127.0.0.1:5000/api/user", {
+  method: "GET",
+  credentials: "include"
+})
+
+
+Backend me cors properly configure:
+
+app.use(cors({
+  origin: "http://localhost:5173",
+  credentials: true
+}));
+
+4. Port / Running Issues
+
+EADDRINUSE → port already use me tha
+
+Correct fix: existing process kill karo ya backend port change karo
+
+5. JWT Integration Suggestion
+
+/register → return JWT token instead of session cookie
+
+/login → return JWT token
+
+Middleware → verify JWT token for protected routes
+
+Frontend → store token in memory / secure storage, use for API calls
+
+6. Improvements Script (Step-by-Step Ready Plan)
+
+Backend
+
+- Install missing packages: cors, express-session, passport, passport-local, jsonwebtoken
+- Switch authentication from session to JWT
+- Ensure /api/register, /api/login, /api/user return proper JSON
+- Add proper error handling (400/401/500)
+- Use cors({ origin: frontend_url, credentials: true })
+
+
+Frontend
+
+- Fix fetch requests to include credentials or JWT header
+- Update Tools page: fetch and display all 10 features
+- Update AI chat input placeholder & design
+- Tabs at bottom: fix responsive layout, z-index
+- Use React Query or Axios properly with backend
+
+
+Testing
+
+- Test login/register → token/session returns correctly
+- Test /api/user → returns logged-in user
+- Test tools features → all 10 working
+- Test AI chat → input works, response shows
+- Test responsive tabs → mobile & desktop
+
+
+Deployment Ready Steps
+
+- npm audit fix
+- Ensure env variables: JWT_SECRET, DB_URL, etc.
+- Frontend fetch URLs point to correct backend
+- Remove console.logs and unused imports
+
+7. Current Project Reality vs Desired
+Feature / Area	Expected	Actual	Status
+Tools Features	10	4	Incomplete
+AI Chat Input Design	Proper placeholder + scrollable	Placeholder bad, chat not working	Needs Fix
+Tabs (Bottom)	Fully responsive	Some hidden / broken	Needs Fix
+Auth (JWT / secure)	JWT + protected routes	Session + partial 401 errors	Needs Fix
+API Responses	Correct JSON + errors	401 / 500	Needs Fix
